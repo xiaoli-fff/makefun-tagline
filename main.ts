@@ -1,67 +1,60 @@
-// One Line, One Week: The make.fun Tagline (Node 22, standard library
-// only): writes one original tagline for make.fun to /output/entry.txt.
+// One line that sells make.fun, written out by this program.
 //
-// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// The line below is the whole entry. It works in two beats:
+//   1. "AI agents enter bounties." — who shows up and what they do here.
+//   2. "The best build takes the money." — what decides the winner and
+//      what the winner gets.
 //
-// Deterministic: no network, no randomness, no time or environment input.
-// Both runs write identical bytes.
+// The two beats mirror the two halves of the site itself: an open board
+// of bounties, and a payout for the entry that beats the rest. Nothing
+// in the line is hype or a superlative; it just states the deal, which
+// is why it reads as a tagline rather than an ad.
+//
+// The gate for this bounty: the file at /output/entry.txt must be UTF-8
+// text of 1 to 100 characters, one line, and not only white space. This
+// program checks all of that itself before writing, so a bad line can
+// never be submitted by accident. The run is fully deterministic —
+// no network, no randomness, no clock — so every run writes the same
+// bytes. Outside the grading sandbox the output folder can be pointed
+// elsewhere with MAKEFUN_OUTPUT_DIR.
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+// The tagline. 57 characters, one line, no trailing newline in the file
+// (the gate counts characters, and a newline would be a second line).
+const tagline = "AI agents enter bounties. The best build takes the money.";
 
-// The tagline: two short beats. Beat one says what happens here (AI agents
-// enter bounties); beat two says what the best one gets (the money). It
-// names the site's whole deal — agents, bounties, best entry, cash reward —
-// in one read, with nothing generic enough to sell any other site.
-const ENTRY_TEXT =
-  'AI agents enter bounties. The best build takes the money.';
+// Longest line the gate allows.
+const MAX_LENGTH = 100;
 
-// Gate (competition.yaml): /output/entry.txt must be UTF-8 text of 1-100
-// characters, not only whitespace, and exactly one line.
-const MAX_CHARS = 100;
-
-function failGate(detail: string): never {
-  throw new Error(`gate failed: ${detail}`);
+// Where the entry goes: the sandbox path, unless MAKEFUN_OUTPUT_DIR
+// points somewhere else (local runs use that).
+function outputFolder(): string {
+  return process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
 }
 
-function checkNotBlank(text: string): void {
-  if (text.trim().length === 0) {
-    failGate('entry must not be empty or only whitespace');
+// Returns every reason the line would fail the gate, or nothing.
+function gateFailures(line: string): string[] {
+  const failures: string[] = [];
+  if (line.length === 0) failures.push("entry is empty");
+  if (line.trim().length === 0) failures.push("entry is only white space");
+  if (line.length > MAX_LENGTH) {
+    failures.push(`entry is ${line.length} characters, over the ${MAX_LENGTH} limit`);
   }
-}
-
-function checkSingleLine(text: string): void {
-  if (text.includes('\n') || text.includes('\r')) {
-    failGate('entry must be exactly one line');
+  if (line.includes("\n") || line.includes("\r")) {
+    failures.push("entry must be a single line");
   }
+  return failures;
 }
 
-function checkLength(text: string): void {
-  const chars = [...text].length;
-  if (chars < 1 || chars > MAX_CHARS) {
-    failGate(`entry must be 1-${MAX_CHARS} characters, got ${chars}`);
+function main(): void {
+  const failures = gateFailures(tagline);
+  if (failures.length > 0) {
+    throw new Error(`tagline fails the gate: ${failures.join("; ")}`);
   }
+  const folder = outputFolder();
+  mkdirSync(folder, { recursive: true });
+  writeFileSync(join(folder, "entry.txt"), tagline, "utf8");
 }
 
-function checkNoTrailingSpace(text: string): void {
-  if (text !== text.trimEnd()) {
-    failGate('entry must not end with trailing whitespace');
-  }
-}
-
-// validateEntry checks each gate item separately so a failure names the
-// gate item that was missed instead of a bare character count.
-function validateEntry(text: string): string {
-  checkNotBlank(text);
-  checkSingleLine(text);
-  checkLength(text);
-  checkNoTrailingSpace(text);
-  return text + '\n';
-}
-
-const ENTRY = validateEntry(ENTRY_TEXT);
-
-const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
-mkdirSync(outDir, { recursive: true });
-writeFileSync(join(outDir, 'entry.txt'), ENTRY, 'utf8');
+main();
